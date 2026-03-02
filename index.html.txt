@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>馬祖好行聽力挑戰</title>
+    <style>
+        :root { --primary: #007aff; --success: #34c759; --danger: #ff3b30; }
+        body { font-family: -apple-system, sans-serif; background: #f2f2f7; margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; -webkit-user-select: none; }
+        .container { background: white; width: 92%; max-width: 400px; padding: 25px; border-radius: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); text-align: center; box-sizing: border-box; }
+        .btn-start { background: var(--success); color: white; padding: 20px; border-radius: 20px; font-size: 24px; border: none; cursor: pointer; width: 100%; font-weight: bold; box-shadow: 0 4px 12px rgba(52,199,89,0.3); transition: 0.2s; }
+        .btn-start:active { transform: scale(0.95); opacity: 0.9; }
+        .btn-play { background: var(--primary); color: white; border: none; width: 100px; height: 100px; border-radius: 50px; font-size: 45px; margin: 20px 0; cursor: pointer; box-shadow: 0 6px 15px rgba(0,122,255,0.3); }
+        .btn-opt { background: #f9f9fb; border: 2px solid #e5e5ea; padding: 16px; width: 100%; border-radius: 16px; margin-bottom: 12px; font-size: 18px; font-weight: 600; cursor: pointer; transition: 0.2s; -webkit-tap-highlight-color: transparent; }
+        .btn-opt:active { background: #e5e5ea; transform: scale(0.98); }
+        .hidden { display: none !important; }
+        #msg { height: 30px; font-weight: bold; margin-top: 10px; font-size: 20px; }
+        .score-box { font-weight: bold; color: var(--primary); }
+        .badge { background: var(--primary); color: white; padding: 5px 15px; border-radius: 12px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-screen" class="container">
+        <h1 style="color:var(--primary); margin:0;">🚌 馬祖好行</h1>
+        <h2 id="ui-title" style="margin: 15px 0;">聽力五關大挑戰</h2>
+        
+        <div id="final-area" class="hidden">
+            <p style="margin:0;">最終總分</p>
+            <div style="font-size:60px; color:var(--primary); font-weight:bold; margin:10px 0;">
+                <span id="total-display">0</span><small style="font-size:20px;">/100</small>
+            </div>
+        </div>
+
+        <p id="ui-desc" style="color:#666; margin-bottom: 20px;">五關題目皆不重複<br>準備好了嗎？</p>
+        <button id="main-btn" class="btn-start" onclick="handleMainBtn()">開始練習</button>
+    </div>
+
+    <div id="game-screen" class="container hidden">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <span id="lvl-name" class="badge">第一關</span>
+            <span class="score-box">累積得分: <span id="score-val">0</span></span>
+        </div>
+        <button class="btn-play" onclick="sayWord()">🔊</button>
+        <div id="options-box">
+            <button class="btn-opt" onclick="checkAns(0)"></button>
+            <button class="btn-opt" onclick="checkAns(1)"></button>
+            <button class="btn-opt" onclick="checkAns(2)"></button>
+        </div>
+        <div id="msg"></div>
+    </div>
+
+    <script>
+        const wordPool = [
+            {e:"Airport", s:"An Airport", z:"機場"}, {e:"Harbor", s:"The Harbor", z:"碼頭"},
+            {e:"Ticket", s:"The Ticket", z:"車票"}, {e:"Matsu", s:"Matsu Matsu", z:"馬祖"}, 
+            {e:"Nangan", s:"To Nangan", z:"南竿"}, {e:"Beigan", s:"To Beigan", z:"北竿"},
+            {e:"Beihai Tunnel", s:"The Beihai Tunnel", z:"北海坑道"}, {e:"Iron Fort", s:"The Iron Fort", z:"鐵堡"},
+            {e:"Giant Statue", s:"Giant Statue", z:"媽祖巨神像"}, {e:"Qinbi", s:"Qinbi Village", z:"芹壁"},
+            {e:"Distillery", s:"The Distillery", z:"酒廠"}, {e:"Luggage", s:"Your Luggage", z:"行李"},
+            {e:"Lighthouse", s:"The Lighthouse", z:"燈塔"}, {e:"Village", s:"The Village", z:"聚落"},
+            {e:"Blue Tears", s:"Blue Tears", z:"藍眼淚"}, {e:"One-day pass", s:"One-day pass", z:"一日券"},
+            {e:"Vegetable Park", s:"Vegetable Park", z:"蔬菜公園"}, {e:"Tunnel 88", s:"Tunnel Eighty-eight", z:"八八坑道"},
+            {e:"Fu'ao Village", s:"Fu-ao Village", z:"福澳村"}, {e:"Qingshui Village", s:"Qingshui Village", z:"清水村"},
+            {e:"Matsu Military Hospital", s:"The Hospital", z:"馬祖軍醫院"}, 
+            {e:"Shengli Reservoir", s:"The Reservoir", z:"勝利水庫"},
+            {e:"Magang Mazu Temple", s:"Mazu Temple", z:"馬港天后宮"},
+            {e:"Turtle Island", s:"The Turtle Island", z:"龜島"},
+            {e:"A Thread of Sky", s:"A Thread of Sky", z:"一線天"},
+            {e:"Beigan Visitor Center", s:"The Visitor Center", z:"北竿遊客中心"}
+        ];
+
+        const phrasePool = [
+            {e:"Watch your step", s:"Please watch your step", z:"上下車請小心"},
+            {e:"Please fasten your seatbelt", s:"Please fasten your seatbelt", z:"請繫好安全帶"},
+            {e:"Hello, Welcome to Matsu!", s:"Hello, Welcome to Matsu!", z:"歡迎來馬祖"},
+            {e:"How are you doing", s:"How are you doing", z:"你好嗎"},
+            {e:"Thank you for taking the bus", s:"Thank you for taking the bus", z:"感謝您的搭乘"},
+            {e:"It’s my pleasure to help you", s:"It is my pleasure to help you", z:"很高興能為您服務"},
+            {e:"Hope to see you again", s:"Hope to see you again", z:"希望再見到您"},
+            {e:"Tap E-ticket when getting on and off", s:"Please tap your E-ticket", z:"上下車刷卡"},
+            {e:"How do I pay", s:"How do I pay", z:"我該如何付款"},
+            {e:"Maybe 20 minutes", s:"Maybe 20 minutes", z:"可能要20分鐘"},
+            {e:"Put luggage here", s:"Please put luggage here", z:"行李放這裡"},
+            {e:"Please show your ticket", s:"Please show your ticket", z:"請出示車票"},
+            {e:"Please ring the bell", s:"Please ring the bell", z:"下車時請按鈴"},
+            {e:"Enjoy your trip", s:"Enjoy your trip", z:"祝您旅途愉快"}
+        ];
+
+        let lvl = 1, idx = 0, totalScore = 0, currentOpts = [];
+        let shuffledWords = [], shuffledPhrases = [], currentLvlQs = [];
+        let isGameOver = false;
+
+        function handleMainBtn() {
+            if (lvl === 1 || isGameOver) {
+                initGame();
+            } else {
+                startLevel();
+            }
+            document.getElementById('ui-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+        }
+
+        function initGame() {
+            window.speechSynthesis.cancel();
+            shuffledWords = [...wordPool].sort(() => 0.5 - Math.random());
+            shuffledPhrases = [...phrasePool].sort(() => 0.5 - Math.random());
+            lvl = 1;
+            totalScore = 0;
+            isGameOver = false;
+            document.getElementById('final-area').classList.add('hidden');
+            startLevel();
+        }
+
+        function startLevel() {
+            idx = 0;
+            document.getElementById('score-val').innerText = totalScore;
+            document.getElementById('lvl-name').innerText = "第 " + lvl + " 關";
+            
+            // 分配不重複題目
+            if (lvl === 1) currentLvlQs = shuffledWords.slice(0, 5);
+            else if (lvl === 2) currentLvlQs = shuffledWords.slice(5, 10);
+            else if (lvl === 3) currentLvlQs = shuffledWords.slice(10, 15);
+            else if (lvl === 4) currentLvlQs = shuffledPhrases.slice(0, 5);
+            else if (lvl === 5) currentLvlQs = shuffledPhrases.slice(5, 10);
+            
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            if (idx >= 5) { levelDone(); return; }
+            document.getElementById('msg').innerText = "";
+            let cur = currentLvlQs[idx];
+            let pool = (lvl <= 3) ? wordPool : phrasePool;
+            let wr = pool.filter(i => i.z !== cur.z).sort(() => 0.5 - Math.random()).slice(0, 2);
+            
+            currentOpts = [cur.z, wr[0].z, wr[1].z].sort(() => 0.5 - Math.random());
+            
+            const btns = document.querySelectorAll('.btn-opt');
+            btns.forEach((b, i) => {
+                b.innerText = currentOpts[i];
+                b.style.borderColor = "#e5e5ea";
+            });
+            
+            setTimeout(sayWord, 600);
+        }
+
+        function checkAns(n) {
+            if(currentOpts[n] === currentLvlQs[idx].z) {
+                totalScore += 4;
+                document.getElementById('score-val').innerText = totalScore;
+                document.getElementById('msg').innerText = "正確 ✅";
+                document.getElementById('msg').style.color = "var(--success)";
+                idx++; 
+                setTimeout(nextQuestion, 800);
+            } else {
+                document.getElementById('msg').innerText = "再聽一次 👂";
+                document.getElementById('msg').style.color = "var(--danger)";
+                sayWord();
+            }
+        }
+
+        function sayWord() {
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
+                // 音訊預熱技術
+                let preWarm = new SpeechSynthesisUtterance("a");
+                preWarm.volume = 0.01; preWarm.rate = 10;
+                
+                // 首音補償技術
+                let u = new SpeechSynthesisUtterance(", , " + currentLvlQs[idx].s); 
+                u.lang = 'en-US'; 
+                u.rate = 0.7; // 語速優化
+                
+                window.speechSynthesis.speak(preWarm);
+                window.speechSynthesis.speak(u);
+            }, 100);
+        }
+
+        function levelDone() {
+            document.getElementById('ui-screen').classList.remove('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            const mainBtn = document.getElementById('main-btn');
+            
+            if (lvl < 5) {
+                document.getElementById('ui-title').innerText = "第 " + lvl + " 關完成！";
+                document.getElementById('ui-desc').innerHTML = "目前累計得分：<b style='font-size:24px; color:var(--primary);'>" + totalScore + "</b>";
+                mainBtn.innerText = "進入下一關";
+                mainBtn.style.background = "var(--primary)";
+                lvl++;
+            } else {
+                isGameOver = true;
+                document.getElementById('ui-title').innerText = "🎊 挑戰全數完成";
+                document.getElementById('final-area').classList.remove('hidden');
+                document.getElementById('total-display').innerText = totalScore;
+                document.getElementById('ui-desc').innerText = "太厲害了！你是馬祖英語通！";
+                mainBtn.innerText = "重新練習";
+                mainBtn.style.background = "var(--success)";
+            }
+        }
+    </script>
+</body>
+</html>
