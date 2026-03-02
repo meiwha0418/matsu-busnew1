@@ -162,21 +162,25 @@
             }
         }
 
-        function sayWord() {
+       function sayWord() {
+            // 1. 先完全停止之前的發音排隊，並清除快取
             window.speechSynthesis.cancel();
+
+            // 2. 針對 iOS 的機制，稍微延遲執行以確保 cancel 完全生效
             setTimeout(() => {
-                // 音訊預熱技術
-                let preWarm = new SpeechSynthesisUtterance("a");
-                preWarm.volume = 0.01; preWarm.rate = 10;
-                
-                // 首音補償技術
-                let u = new SpeechSynthesisUtterance(", , " + currentLvlQs[idx].s); 
+                // 如果目前的關卡或索引不存在則跳出
+                if (!currentLvlQs[idx]) return;
+
+                // 3. 建立發音請求，移除原本導致重複音節的預熱與逗號
+                let u = new SpeechSynthesisUtterance(currentLvlQs[idx].s); 
                 u.lang = 'en-US'; 
-                u.rate = 0.7; // 語速優化
-                
-                window.speechSynthesis.speak(preWarm);
+                u.rate = 0.8; // iOS 上 0.7 有時太慢會斷音，建議改為 0.8
+                u.volume = 1.0;
+                u.pitch = 1.0;
+
+                // 4. 特殊處理：確保在使用者有互動後才播放 (iOS 限制)
                 window.speechSynthesis.speak(u);
-            }, 100);
+            }, 50); // 縮短延遲時間，避免使用者等待感
         }
 
         function levelDone() {
